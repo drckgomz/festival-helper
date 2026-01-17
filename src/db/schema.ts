@@ -6,33 +6,11 @@ import {
   uuid,
   boolean,
   integer,
+  date,
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-
-/**
- * USERS (linked to Clerk)
- */
-export const users = pgTable(
-  "users",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    clerkUserId: text("clerk_user_id").notNull(),
-    email: text("email"),
-    displayName: text("display_name"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => ({
-    clerkUserIdUnique: uniqueIndex("users_clerk_user_id_unique").on(t.clerkUserId),
-  })
-);
-
-export const usersRelations = relations(users, ({ many }) => ({
-  favorites: many(userFestivalArtistFavorites),
-  groupMembers: many(groupMembers),
-}));
 
 /**
  * FESTIVALS
@@ -56,12 +34,40 @@ export const festivals = pgTable(
   })
 );
 
-export const festivalsRelations = relations(festivals, ({ many }) => ({
-  stages: many(stages),
-  sets: many(sets),
-  favorites: many(userFestivalArtistFavorites),
-  groups: many(groups),
-}));
+/**
+ * FESTIVAL DAYS (Option B)
+ * Explicit “days the festival runs”, supports gaps (ACL weekends).
+ */
+
+export const festivalDays = pgTable(
+  "festival_days",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    festivalId: uuid("festival_id")
+      .notNull()
+      .references(() => festivals.id, { onDelete: "cascade" }),
+
+    dayDate: date("day_date").notNull(),
+    label: text("label"),
+
+    // ✅ add these
+    groupKey: text("group_key"),       // ex: "w1", "w2"
+    groupLabel: text("group_label"),   // ex: "WEEKEND ONE", "WEEKEND TWO"
+
+    sortOrder: integer("sort_order").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    festivalIdIdx: index("festival_days_festival_id_idx").on(t.festivalId),
+    activeIdx: index("festival_days_active_idx").on(t.festivalId, t.isActive),
+    // optional: grouping index helps querying/sorting later
+    groupIdx: index("festival_days_group_idx").on(t.festivalId, t.groupKey, t.sortOrder),
+  })
+);
+
 
 /**
  * STAGES
@@ -84,11 +90,6 @@ export const stages = pgTable(
   })
 );
 
-export const stagesRelations = relations(stages, ({ one, many }) => ({
-  festival: one(festivals, { fields: [stages.festivalId], references: [festivals.id] }),
-  sets: many(sets),
-}));
-
 /**
  * ARTISTS
  */
@@ -108,10 +109,23 @@ export const artists = pgTable(
   })
 );
 
-export const artistsRelations = relations(artists, ({ many }) => ({
-  sets: many(sets),
-  favorites: many(userFestivalArtistFavorites),
-}));
+/**
+ * USERS (linked to Clerk)
+ */
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    clerkUserId: text("clerk_user_id").notNull(),
+    email: text("email"),
+    displayName: text("display_name"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    clerkUserIdUnique: uniqueIndex("users_clerk_user_id_unique").on(t.clerkUserId),
+  })
+);
 
 /**
  * SETS / PERFORMANCES
@@ -129,7 +143,7 @@ export const sets = pgTable(
       .references(() => artists.id, { onDelete: "cascade" }),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
-    dayLabel: text("day_label"), // "Friday", "W1-Sat", etc.
+    dayLabel: text("day_label"), // optional: "Friday", "W1-Sat", etc.
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -139,15 +153,8 @@ export const sets = pgTable(
   })
 );
 
-export const setsRelations = relations(sets, ({ one }) => ({
-  festival: one(festivals, { fields: [sets.festivalId], references: [festivals.id] }),
-  stage: one(stages, { fields: [sets.stageId], references: [stages.id] }),
-  artist: one(artists, { fields: [sets.artistId], references: [artists.id] }),
-}));
-
 /**
- * USER FAVORITES PER FESTIVAL (simple starting point)
- * (Later you can add conflict voting + ranking algo tables.)
+ * USER FAVORITES PER FESTIVAL
  */
 export const userFestivalArtistFavorites = pgTable(
   "user_festival_artist_favorites",
@@ -171,6 +178,87 @@ export const userFestivalArtistFavorites = pgTable(
   })
 );
 
+/**
+ * GROUP PLANNING
+ */
+export const groups = pgTable(
+  "groups",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    festivalId: uuid("festival_id")
+      .notNull()
+      .references(() => festivals.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    joinCode: text("join_code").notNull(),
+    createdByUserId: uuid("created_by_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    joinCodeUnique: uniqueIndex("groups_join_code_unique").on(t.joinCode),
+    festivalIdx: index("groups_festival_idx").on(t.festivalId),
+  })
+);
+
+export const groupMembers = pgTable(
+  "group_members",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => groups.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    role: text("role").notNull().default("member"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    uniqueMember: uniqueIndex("group_members_unique").on(t.groupId, t.userId),
+    groupIdx: index("group_members_group_idx").on(t.groupId),
+    userIdx: index("group_members_user_idx").on(t.userId),
+  })
+);
+
+/* ===========================
+   RELATIONS (defined after)
+   =========================== */
+
+export const festivalsRelations = relations(festivals, ({ many }) => ({
+  days: many(festivalDays),
+  stages: many(stages),
+  sets: many(sets),
+  favorites: many(userFestivalArtistFavorites),
+  groups: many(groups),
+}));
+
+export const festivalDaysRelations = relations(festivalDays, ({ one }) => ({
+  festival: one(festivals, { fields: [festivalDays.festivalId], references: [festivals.id] }),
+}));
+
+export const stagesRelations = relations(stages, ({ one, many }) => ({
+  festival: one(festivals, { fields: [stages.festivalId], references: [festivals.id] }),
+  sets: many(sets),
+}));
+
+export const artistsRelations = relations(artists, ({ many }) => ({
+  sets: many(sets),
+  favorites: many(userFestivalArtistFavorites),
+}));
+
+export const usersRelations = relations(users, ({ many }) => ({
+  favorites: many(userFestivalArtistFavorites),
+  groupMembers: many(groupMembers),
+}));
+
+export const setsRelations = relations(sets, ({ one }) => ({
+  festival: one(festivals, { fields: [sets.festivalId], references: [festivals.id] }),
+  stage: one(stages, { fields: [sets.stageId], references: [stages.id] }),
+  artist: one(artists, { fields: [sets.artistId], references: [artists.id] }),
+}));
+
 export const userFestivalArtistFavoritesRelations = relations(
   userFestivalArtistFavorites,
   ({ one }) => ({
@@ -186,55 +274,11 @@ export const userFestivalArtistFavoritesRelations = relations(
   })
 );
 
-/**
- * GROUP PLANNING (simple v1)
- */
-export const groups = pgTable(
-  "groups",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    festivalId: uuid("festival_id")
-      .notNull()
-      .references(() => festivals.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    joinCode: text("join_code").notNull(), // short code users can enter
-    createdByUserId: uuid("created_by_user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "restrict" }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => ({
-    joinCodeUnique: uniqueIndex("groups_join_code_unique").on(t.joinCode),
-    festivalIdx: index("groups_festival_idx").on(t.festivalId),
-  })
-);
-
 export const groupsRelations = relations(groups, ({ one, many }) => ({
   festival: one(festivals, { fields: [groups.festivalId], references: [festivals.id] }),
   createdBy: one(users, { fields: [groups.createdByUserId], references: [users.id] }),
   members: many(groupMembers),
 }));
-
-export const groupMembers = pgTable(
-  "group_members",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    groupId: uuid("group_id")
-      .notNull()
-      .references(() => groups.id, { onDelete: "cascade" }),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    role: text("role").notNull().default("member"), // "owner" | "member"
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (t) => ({
-    uniqueMember: uniqueIndex("group_members_unique").on(t.groupId, t.userId),
-    groupIdx: index("group_members_group_idx").on(t.groupId),
-    userIdx: index("group_members_user_idx").on(t.userId),
-  })
-);
 
 export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
   group: one(groups, { fields: [groupMembers.groupId], references: [groups.id] }),
