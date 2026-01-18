@@ -4,14 +4,15 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
+type LayoutCtx<T extends Record<string, string>> = {
+  params: Promise<T>;
+};
+
 export default async function AdminFestivalLayout({
   children,
   params,
-}: {
-  children: ReactNode;
-  params: { festivalId: string };
-}) {
-  const festivalId = params.festivalId;
+}: { children: ReactNode } & LayoutCtx<{ festivalId: string }>) {
+  const { festivalId } = await params;
   const base = `/admin/festivals/${festivalId}`;
 
   return (
