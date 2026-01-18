@@ -1,0 +1,1 @@
+// src/app/api/admin/festivals/[festivalId]/days/route.ts

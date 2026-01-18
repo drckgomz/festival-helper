@@ -36,9 +36,7 @@ export const festivals = pgTable(
 
 /**
  * FESTIVAL DAYS (Option B)
- * Explicit “days the festival runs”, supports gaps (ACL weekends).
  */
-
 export const festivalDays = pgTable(
   "festival_days",
   {
@@ -50,9 +48,8 @@ export const festivalDays = pgTable(
     dayDate: date("day_date").notNull(),
     label: text("label"),
 
-    // ✅ add these
-    groupKey: text("group_key"),       // ex: "w1", "w2"
-    groupLabel: text("group_label"),   // ex: "WEEKEND ONE", "WEEKEND TWO"
+    groupKey: text("group_key"), // ex: "w1", "w2"
+    groupLabel: text("group_label"), // ex: "WEEKEND ONE", "WEEKEND TWO"
 
     sortOrder: integer("sort_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
@@ -63,11 +60,9 @@ export const festivalDays = pgTable(
   (t) => ({
     festivalIdIdx: index("festival_days_festival_id_idx").on(t.festivalId),
     activeIdx: index("festival_days_active_idx").on(t.festivalId, t.isActive),
-    // optional: grouping index helps querying/sorting later
     groupIdx: index("festival_days_group_idx").on(t.festivalId, t.groupKey, t.sortOrder),
   })
 );
-
 
 /**
  * STAGES
@@ -128,6 +123,122 @@ export const users = pgTable(
 );
 
 /**
+ * USER PREFERENCES (per-user app settings)
+ * - store non-security preferences here
+ * - keep "status" here if you want (active/suspended/etc.)
+ */
+export const userPreferences = pgTable(
+  "user_preferences",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    status: text("status").notNull().default("active"), // active | suspended | invited | etc.
+    timezone: text("timezone").default("America/Chicago"),
+    notifyEmail: boolean("notify_email").notNull().default(true),
+    notifyPush: boolean("notify_push").notNull().default(false),
+
+    defaultFestivalId: uuid("default_festival_id").references(() => festivals.id, {
+      onDelete: "set null",
+    }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    defaultFestivalIdx: index("user_preferences_default_festival_idx").on(t.defaultFestivalId),
+    statusIdx: index("user_preferences_status_idx").on(t.status),
+  })
+);
+
+/**
+ * FESTIVAL ADMINS (per-festival roles, plus optional global superadmin audit)
+ * This is your DB mirror for auditing + joins.
+ *
+ * Role meanings (suggestion):
+ * - "owner": can manage admins + everything for that festival
+ * - "admin": can manage content for that festival
+ * - "editor": can edit sets/stages/days but not admins/publish
+ * - "viewer": read-only
+ *
+ * NOTE: Global superadmin should still live in Clerk metadata as the source of truth.
+ * If you want to audit it in DB too, log it in roleAuditLog below.
+ */
+export const festivalAdmins = pgTable(
+  "festival_admins",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    festivalId: uuid("festival_id")
+      .notNull()
+      .references(() => festivals.id, { onDelete: "cascade" }),
+
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    role: text("role").notNull().default("admin"), // owner | admin | editor | viewer
+
+    // who granted this role (nullable for bootstrap)
+    grantedByUserId: uuid("granted_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+
+    source: text("source").notNull().default("clerk"), // clerk | db | seed
+    isActive: boolean("is_active").notNull().default(true),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    uniqueFestivalAdmin: uniqueIndex("festival_admins_unique").on(t.festivalId, t.userId),
+    festivalIdx: index("festival_admins_festival_idx").on(t.festivalId),
+    userIdx: index("festival_admins_user_idx").on(t.userId),
+    roleIdx: index("festival_admins_role_idx").on(t.festivalId, t.role),
+    activeIdx: index("festival_admins_active_idx").on(t.festivalId, t.isActive),
+  })
+);
+
+/**
+ * ROLE AUDIT LOG
+ * Records changes to roles (festival-scoped or global).
+ *
+ * - Use festivalId = null for global superadmin changes
+ * - "actorUserId" = who performed the change
+ * - "targetUserId" = whose role changed
+ */
+export const roleAuditLog = pgTable(
+  "role_audit_log",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    festivalId: uuid("festival_id").references(() => festivals.id, { onDelete: "cascade" }),
+
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    targetUserId: uuid("target_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+
+    action: text("action").notNull(), // grant | revoke | update | set_superadmin | unset_superadmin
+    roleBefore: text("role_before"),
+    roleAfter: text("role_after"),
+
+    source: text("source").notNull().default("clerk"), // clerk | api | seed
+    reason: text("reason"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    festivalIdx: index("role_audit_festival_idx").on(t.festivalId),
+    actorIdx: index("role_audit_actor_idx").on(t.actorUserId),
+    targetIdx: index("role_audit_target_idx").on(t.targetUserId),
+    createdIdx: index("role_audit_created_idx").on(t.createdAt),
+  })
+);
+
+/**
  * SETS / PERFORMANCES
  */
 export const sets = pgTable(
@@ -143,7 +254,7 @@ export const sets = pgTable(
       .references(() => artists.id, { onDelete: "cascade" }),
     startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
     endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
-    dayLabel: text("day_label"), // optional: "Friday", "W1-Sat", etc.
+    dayLabel: text("day_label"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -223,7 +334,7 @@ export const groupMembers = pgTable(
 );
 
 /* ===========================
-   RELATIONS (defined after)
+   RELATIONS
    =========================== */
 
 export const festivalsRelations = relations(festivals, ({ many }) => ({
@@ -232,6 +343,8 @@ export const festivalsRelations = relations(festivals, ({ many }) => ({
   sets: many(sets),
   favorites: many(userFestivalArtistFavorites),
   groups: many(groups),
+  admins: many(festivalAdmins),
+  roleAudit: many(roleAuditLog),
 }));
 
 export const festivalDaysRelations = relations(festivalDays, ({ one }) => ({
@@ -248,9 +361,41 @@ export const artistsRelations = relations(artists, ({ many }) => ({
   favorites: many(userFestivalArtistFavorites),
 }));
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   favorites: many(userFestivalArtistFavorites),
   groupMembers: many(groupMembers),
+  preferences: one(userPreferences, { fields: [users.id], references: [userPreferences.userId] }),
+  festivalAdminRoles: many(festivalAdmins),
+  actedRoleAudits: many(roleAuditLog, { relationName: "roleAudit_actor" }),
+  targetRoleAudits: many(roleAuditLog, { relationName: "roleAudit_target" }),
+}));
+
+export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
+  user: one(users, { fields: [userPreferences.userId], references: [users.id] }),
+  defaultFestival: one(festivals, {
+    fields: [userPreferences.defaultFestivalId],
+    references: [festivals.id],
+  }),
+}));
+
+export const festivalAdminsRelations = relations(festivalAdmins, ({ one }) => ({
+  festival: one(festivals, { fields: [festivalAdmins.festivalId], references: [festivals.id] }),
+  user: one(users, { fields: [festivalAdmins.userId], references: [users.id] }),
+  grantedBy: one(users, { fields: [festivalAdmins.grantedByUserId], references: [users.id] }),
+}));
+
+export const roleAuditLogRelations = relations(roleAuditLog, ({ one }) => ({
+  festival: one(festivals, { fields: [roleAuditLog.festivalId], references: [festivals.id] }),
+  actor: one(users, {
+    relationName: "roleAudit_actor",
+    fields: [roleAuditLog.actorUserId],
+    references: [users.id],
+  }),
+  target: one(users, {
+    relationName: "roleAudit_target",
+    fields: [roleAuditLog.targetUserId],
+    references: [users.id],
+  }),
 }));
 
 export const setsRelations = relations(sets, ({ one }) => ({

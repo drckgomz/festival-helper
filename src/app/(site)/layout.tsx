@@ -1,4 +1,6 @@
 // src/app/(site)/layout.tsx
+export const dynamic = "force-dynamic";
+
 import { TopNav } from "@/components/app/top-nav";
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
