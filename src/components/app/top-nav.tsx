@@ -1,6 +1,7 @@
 // src/components/app/top-nav.tsx
 import Link from "next/link";
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { SignOutButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,11 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Shield, Settings, LogOut } from "lucide-react";
 
-// ✅ add this
 import { ensureUser } from "@/db/queries/users";
-
-// ✅ add this (recommended for sign-out, see below)
-import { SignOutButton } from "@clerk/nextjs";
 
 function isAdminFromUser(user: { publicMetadata?: unknown }) {
   const pm = (user.publicMetadata ?? {}) as Record<string, unknown>;
@@ -27,11 +24,18 @@ function isAdminFromUser(user: { publicMetadata?: unknown }) {
 export async function TopNav() {
   const { userId } = await auth();
 
+  // shared shell styles (theme-token based)
+  const headerClass =
+    "sticky top-0 z-50 border-b border-border bg-background/75 backdrop-blur supports-[backdrop-filter]:bg-background/60";
+
   if (!userId) {
     return (
-      <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/70 backdrop-blur dark:border-zinc-800 dark:bg-black/40">
+      <header className={headerClass}>
         <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <Link href="/" className="font-semibold tracking-tight">
+          <Link
+            href="/"
+            className="font-semibold tracking-tight text-foreground hover:opacity-90"
+          >
             Festival Helper
           </Link>
 
@@ -51,7 +55,7 @@ export async function TopNav() {
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
 
-  // ✅ ALWAYS upsert into your DB
+  // ALWAYS upsert into your DB
   await ensureUser({
     clerkUserId: user.id,
     email: user.primaryEmailAddress?.emailAddress ?? null,
@@ -65,9 +69,12 @@ export async function TopNav() {
   const isAdmin = isAdminFromUser(user);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/70 backdrop-blur dark:border-zinc-800 dark:bg-black/40">
+    <header className={headerClass}>
       <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="font-semibold tracking-tight">
+        <Link
+          href="/"
+          className="font-semibold tracking-tight text-foreground hover:opacity-90"
+        >
           Festival Helper
         </Link>
 
@@ -85,23 +92,31 @@ export async function TopNav() {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="flex items-center gap-2 rounded-full px-2 py-1 hover:bg-zinc-100 dark:hover:bg-zinc-900"
+                className="festival-hover flex items-center gap-2 rounded-full p-1.5 text-foreground"
                 aria-label="Account menu"
               >
-                <img
-                  src={imageUrl}
-                  alt={displayName}
-                  className="h-8 w-8 rounded-full"
-                  referrerPolicy="no-referrer"
-                />
+                <div className="relative h-9 w-9 overflow-hidden rounded-full ring-1 ring-border">
+                  <img
+                    src={imageUrl}
+                    alt={displayName}
+                    className="h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
               </button>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="truncate">{displayName}</DropdownMenuLabel>
-              <DropdownMenuSeparator />
 
-              <DropdownMenuItem asChild>
+            <DropdownMenuContent
+              align="end"
+              className="w-56 border-border bg-popover text-popover-foreground"
+            >
+              <DropdownMenuLabel className="truncate text-foreground">
+                {displayName}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-border" />
+
+              <DropdownMenuItem asChild className="focus:bg-hover focus:text-hover-foreground">
                 <Link href="/account" className="flex items-center gap-2">
                   <Settings className="h-4 w-4" />
                   Account settings
@@ -109,7 +124,10 @@ export async function TopNav() {
               </DropdownMenuItem>
 
               {isAdmin ? (
-                <DropdownMenuItem asChild>
+                <DropdownMenuItem
+                  asChild
+                  className="focus:bg-hover focus:text-hover-foreground"
+                >
                   <Link href="/admin" className="flex items-center gap-2">
                     <Shield className="h-4 w-4" />
                     Admin
@@ -117,10 +135,9 @@ export async function TopNav() {
                 </DropdownMenuItem>
               ) : null}
 
-              <DropdownMenuSeparator />
+              <DropdownMenuSeparator className="bg-border" />
 
-              {/* ✅ Sign out without needing /sign-out route */}
-              <DropdownMenuItem asChild>
+              <DropdownMenuItem asChild className="focus:bg-hover focus:text-hover-foreground">
                 <SignOutButton redirectUrl="/">
                   <button className="flex w-full items-center gap-2">
                     <LogOut className="h-4 w-4" />

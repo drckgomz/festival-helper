@@ -14,6 +14,7 @@ import { updateElo } from "./elo";
 import { buildConflictPairs, chooseNextPair, safeKey } from "./pairs";
 import { makeDebugLogger } from "./debug";
 import { PickCard } from "./pick-card";
+import { ProgressCard } from "./progress-card";
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
@@ -350,13 +351,13 @@ export function ConflictVotePage({
     setCurrentPair(nextPair);
   }
 
-  const setsCsv = React.useMemo(() => parsedSets.map((s) => s.setId).sort().join(","), [parsedSets])
+  const setsCsv = React.useMemo(() => parsedSets.map((s) => s.setId).sort().join(","), [parsedSets]);
   const qsSets = encodeURIComponent(setsCsv);
 
-
   const backHref = `/festival/${festivalSlug}/artists?days=${encodeURIComponent(daysKey)}`;
-  const scheduleHref = `/festival/${festivalSlug}/schedule?days=${encodeURIComponent(daysKey)}&sets=${qsSets}`;
-
+  const scheduleHref = `/festival/${festivalSlug}/schedule?days=${encodeURIComponent(
+    daysKey
+  )}&sets=${qsSets}`;
 
   const a = currentPair ? byId.get(currentPair.aId) : null;
   const b = currentPair ? byId.get(currentPair.bId) : null;
@@ -366,8 +367,8 @@ export function ConflictVotePage({
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold">Vote between conflicts</p>
-          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm font-semibold text-foreground">Vote between conflicts</p>
+          <p className="mt-1 text-xs text-muted-foreground">
             Pick which overlapping set you’d rather see. We’ll use this to rank your choices.
           </p>
         </div>
@@ -426,32 +427,23 @@ export function ConflictVotePage({
         </div>
       </div>
 
-      {/* Progress */}
-      <Card className="border-zinc-200/70 dark:border-zinc-800">
-        <CardContent className="flex flex-wrap items-center justify-between gap-2 p-4">
-          <div className="text-xs text-zinc-600 dark:text-zinc-300">
-            Conflicts found: <span className="font-medium">{totalPairs}</span>
-            <span className="mx-2">•</span>
-            Votes: <span className="font-medium">{votes.length}</span> / {voteTarget}
-          </div>
-
-          <div className="text-xs text-zinc-600 dark:text-zinc-300">
-            Buffer: <span className="font-medium">{bufferMin} min</span>
-            <span className="mx-2">•</span>
-            Allowed overlap: <span className="font-medium">{allowedOverlapMin} min</span>
-            <span className="mx-2">•</span>
-            Elo K: <span className="font-medium">{K}</span>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Progress (use your themed ProgressCard) */}
+      <ProgressCard
+        totalPairs={totalPairs}
+        votesCount={votes.length}
+        voteTarget={voteTarget}
+        bufferMin={bufferMin}
+        allowedOverlapMin={allowedOverlapMin}
+        kFactor={K}
+      />
 
       {/* Voting UI */}
       {totalPairs === 0 ? (
-        <Card className="border-zinc-200/70 dark:border-zinc-800">
+        <Card className="border-border bg-card text-card-foreground">
           <CardContent className="p-6 text-center">
-            <CheckCircle2 className="mx-auto h-8 w-8 opacity-70" />
-            <p className="mt-3 text-sm font-semibold">No conflicts detected</p>
-            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
+            <CheckCircle2 className="mx-auto h-8 w-8 text-muted-foreground" />
+            <p className="mt-3 text-sm font-semibold text-foreground">No conflicts detected</p>
+            <p className="mt-1 text-xs text-muted-foreground">
               These sets don’t overlap. You can include everything.
             </p>
             <Button className="mt-4 rounded-full" onClick={() => router.push(scheduleHref)}>
@@ -460,10 +452,10 @@ export function ConflictVotePage({
           </CardContent>
         </Card>
       ) : doneVoting || !currentPair || !a || !b ? (
-        <Card className="border-zinc-200/70 dark:border-zinc-800">
+        <Card className="border-border bg-card text-card-foreground">
           <CardContent className="p-6 text-center">
-            <p className="text-sm font-semibold">Voting complete</p>
-            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
+            <p className="text-sm font-semibold text-foreground">Voting complete</p>
+            <p className="mt-1 text-xs text-muted-foreground">
               Next up: review your schedule and adjust transitions.
             </p>
             <Button className="mt-4 rounded-full" onClick={() => router.push(scheduleHref)}>
@@ -473,7 +465,8 @@ export function ConflictVotePage({
         </Card>
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Card className="border-zinc-200/70 dark:border-zinc-800">
+          {/* A */}
+          <Card className="border-border bg-card text-card-foreground transition-colors hover:bg-muted/50">
             <CardContent className="p-4">
               <PickCard set={a} rating={ratings[a.setId] ?? 1000} />
               <Button className="mt-3 h-10 w-full rounded-full" onClick={() => handleVote(a.setId)}>
@@ -482,7 +475,8 @@ export function ConflictVotePage({
             </CardContent>
           </Card>
 
-          <Card className="border-zinc-200/70 dark:border-zinc-800">
+          {/* B */}
+          <Card className="border-border bg-card text-card-foreground transition-colors hover:bg-muted/50">
             <CardContent className="p-4">
               <PickCard set={b} rating={ratings[b.setId] ?? 1000} />
               <Button className="mt-3 h-10 w-full rounded-full" onClick={() => handleVote(b.setId)}>

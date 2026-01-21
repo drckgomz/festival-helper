@@ -217,19 +217,21 @@ export function ConflictSchedulePage({
       setSaveStatus("error");
     }
   }
+
   const setsCsv = React.useMemo(() => parsedSets.map((s) => s.setId).sort().join(","), [parsedSets]);
   const qsSets = encodeURIComponent(setsCsv);
-
-
   const voteHref = `/festival/${festivalSlug}/vote?days=${encodeURIComponent(daysKey)}&sets=${qsSets}`;
+
+  const saveLabel =
+    saveStatus === "saving" ? "Saving…" : saveStatus === "saved" ? "Saved" : "Save";
 
   return (
     <div className="grid gap-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold">Review your schedule</p>
-          <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
+          <p className="text-sm font-semibold text-foreground">Review your schedule</p>
+          <p className="mt-1 text-xs text-muted-foreground">
             Tap a set card to toggle “arrive late” / “leave early” when transitions are tight.
           </p>
         </div>
@@ -242,11 +244,23 @@ export function ConflictSchedulePage({
             </Link>
           </Button>
 
-          <Button className="h-9 rounded-full px-4" onClick={handleSave} disabled={saveStatus === "saving"}>
+          <Button
+            className="h-9 rounded-full px-4"
+            onClick={handleSave}
+            disabled={saveStatus === "saving"}
+          >
             <Save className="mr-2 h-4 w-4" />
-            Save
+            {saveLabel}
           </Button>
         </div>
+
+        {saveStatus === "error" ? (
+          <p className="w-full text-right text-xs text-destructive">Could not save. Try again.</p>
+        ) : saveStatus === "unauthorized" ? (
+          <p className="w-full text-right text-xs text-muted-foreground">Sign in to save.</p>
+        ) : saveStatus === "saved" ? (
+          <p className="w-full text-right text-xs text-muted-foreground">Saved!</p>
+        ) : null}
       </div>
 
       {/* Final schedule + adjustments */}
@@ -263,11 +277,12 @@ export function ConflictSchedulePage({
       />
 
       {/* Optional: show a small “state” card */}
-      <Card className="border-zinc-200/70 dark:border-zinc-800">
-        <CardContent className="p-4 text-xs text-zinc-600 dark:text-zinc-300">
-          Votes used: <span className="font-medium">{votes.length}</span>
-          <span className="mx-2">•</span>
-          Rated sets: <span className="font-medium">{Object.keys(ratings).length}</span>
+      <Card className="border-border bg-card text-card-foreground">
+        <CardContent className="p-4 text-xs text-muted-foreground">
+          Votes used: <span className="font-medium text-foreground">{votes.length}</span>
+          <span className="mx-2 opacity-60">•</span>
+          Rated sets:{" "}
+          <span className="font-medium text-foreground">{Object.keys(ratings).length}</span>
         </CardContent>
       </Card>
     </div>

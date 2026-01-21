@@ -7,10 +7,8 @@ import { Calendar as CalendarIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { TimePicker } from "@/components/admin/time-picker";
-
 
 type Props = {
   name: string; // "startDate" | "endDate"
@@ -60,7 +58,7 @@ export function DateTimeField({ name, label, description, initialValue }: Props)
 
   return (
     <div className="grid gap-2">
-      <label className="text-xs font-medium text-zinc-700 dark:text-zinc-200">{label}</label>
+      <label className="text-xs font-medium text-foreground">{label}</label>
 
       <input type="hidden" name={name} value={hiddenValue} />
 
@@ -70,15 +68,21 @@ export function DateTimeField({ name, label, description, initialValue }: Props)
             <Button
               type="button"
               variant="outline"
-              className="h-10 w-full justify-start rounded-md border-zinc-200 bg-white px-3 text-left text-sm font-normal text-zinc-900 shadow-sm
-                         hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+              className="h-10 w-full justify-start rounded-md px-3 text-left font-normal"
             >
               <CalendarIcon className="mr-2 h-4 w-4 opacity-70" />
-              {date ? format(date, "PPP") : <span className="text-zinc-500">Pick a date</span>}
+              {date ? (
+                format(date, "PPP")
+              ) : (
+                <span className="text-muted-foreground">Pick a date</span>
+              )}
             </Button>
           </PopoverTrigger>
 
-          <PopoverContent className="w-auto p-2" align="start">
+          <PopoverContent
+            className="w-auto rounded-xl border-border bg-popover p-2 text-popover-foreground shadow-sm"
+            align="start"
+          >
             <Calendar
               mode="single"
               selected={date ?? undefined}
@@ -88,10 +92,13 @@ export function DateTimeField({ name, label, description, initialValue }: Props)
           </PopoverContent>
         </Popover>
 
+        {/* If your TimePicker supports className, you can pass it; otherwise it will still inherit theme tokens */}
         <TimePicker value={time} onChange={setTime} stepMinutes={10} />
       </div>
 
-      {description ? <p className="text-[11px] text-zinc-500 dark:text-zinc-400">{description}</p> : null}
+      {description ? (
+        <p className="text-[11px] text-muted-foreground">{description}</p>
+      ) : null}
     </div>
   );
 }

@@ -22,13 +22,23 @@ export const dynamic = "force-dynamic";
 
 function MetricCard(props: { href: string; label: string; value: string | number; sub?: string }) {
   const { href, label, value, sub } = props;
+
   return (
     <Link href={href} className="block">
-      <Card className="border-zinc-200/70 transition-colors hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-950/60">
+      <Card
+        className={[
+          "border-border bg-card text-card-foreground",
+          "transition-colors",
+          // ✅ theme-safe hover (doesn't flip text to black in dark mode)
+          "hover:bg-hover hover:text-hover-foreground",
+          "active:bg-active active:text-active-foreground",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40",
+        ].join(" ")}
+      >
         <CardContent className="p-5">
-          <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{label}</p>
-          <p className="mt-2 text-2xl font-semibold tracking-tight">{value}</p>
-          {sub ? <p className="mt-1 text-[11px] text-zinc-600 dark:text-zinc-300">{sub}</p> : null}
+          <p className="text-xs font-medium text-muted-foreground">{label}</p>
+          <p className="mt-2 text-2xl font-semibold tracking-tight text-foreground">{value}</p>
+          {sub ? <p className="mt-1 text-[11px] text-muted-foreground">{sub}</p> : null}
         </CardContent>
       </Card>
     </Link>
@@ -49,7 +59,6 @@ function toDate(value: unknown): Date | null {
 
   return null;
 }
-
 
 function fillDays(rows: { day: string; value: number }[], days: number): Point[] {
   const map = new Map(rows.map((r) => [r.day, Number(r.value || 0)]));
@@ -76,7 +85,7 @@ export default async function AdminDashboardPage() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 30);
 
-  // 1) Headline counts + last updates (safe Drizzle queries)
+  // 1) Headline counts + last updates
   const [
     festivalsTotalRow,
     festivalsPublishedRow,
@@ -115,12 +124,10 @@ export default async function AdminDashboardPage() {
   const lastFestivalUpdate = toDate(lastFestivalUpdateRow[0]?.max);
   const lastSetUpdate = toDate(lastSetUpdateRow[0]?.max);
 
-
   const lastUpdate =
-  lastSetUpdate && lastFestivalUpdate
-    ? new Date(Math.max(lastSetUpdate.getTime(), lastFestivalUpdate.getTime()))
-    : lastSetUpdate ?? lastFestivalUpdate;
-
+    lastSetUpdate && lastFestivalUpdate
+      ? new Date(Math.max(lastSetUpdate.getTime(), lastFestivalUpdate.getTime()))
+      : lastSetUpdate ?? lastFestivalUpdate;
 
   const lastUpdateLabel = lastUpdate
     ? lastUpdate.toLocaleString(undefined, {
@@ -132,7 +139,7 @@ export default async function AdminDashboardPage() {
       })
     : "—";
 
-  // 2) Charts (last 30 days) — use date_trunc via sql(), but still in Drizzle select()
+  // 2) Charts (last 30 days)
   const [usersDailyDb, setsDailyDb, favsDailyDb] = await Promise.all([
     db
       .select({
@@ -176,26 +183,26 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="grid gap-4">
-      <Card className="border-zinc-200/70 dark:border-zinc-800">
+      {/* Header card */}
+      <Card className="border-border bg-card text-card-foreground">
         <CardContent className="p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold">Dashboard</p>
-              <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
+              <p className="text-sm font-semibold text-foreground">Dashboard</p>
+              <p className="mt-1 text-xs text-muted-foreground">
                 Quick snapshot. Click any tile to jump into that section.
               </p>
             </div>
 
             <div className="text-right">
-              <p className="text-[11px] text-zinc-500 dark:text-zinc-400">Last content update</p>
-              <p className="mt-1 text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                {lastUpdateLabel}
-              </p>
+              <p className="text-[11px] text-muted-foreground">Last content update</p>
+              <p className="mt-1 text-xs font-medium text-foreground">{lastUpdateLabel}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Metric tiles */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           href="/admin/festivals"
@@ -212,7 +219,7 @@ export default async function AdminDashboardPage() {
         <MetricCard href="/admin/account" label="Your account" value="Settings" sub="Profile + security" />
       </div>
 
-
+      {/* Charts */}
       <DashboardCharts
         usersDaily={usersDaily}
         setsDaily={setsDaily}
@@ -220,12 +227,13 @@ export default async function AdminDashboardPage() {
         festivalStatus={festivalStatus}
       />
 
+      {/* Bottom cards */}
       <div className="grid gap-3 lg:grid-cols-2">
-        <Card className="border-zinc-200/70 dark:border-zinc-800">
+        <Card className="border-border bg-card text-card-foreground">
           <CardContent className="p-5">
-            <p className="text-sm font-semibold">What to do next</p>
+            <p className="text-sm font-semibold text-foreground">What to do next</p>
             <Separator className="my-4" />
-            <ul className="grid gap-2 text-xs text-zinc-600 dark:text-zinc-300">
+            <ul className="grid gap-2 text-xs text-muted-foreground">
               <li>• Create / publish a festival (slug, dates, timezone).</li>
               <li>• Add days + stages, then bulk import sets.</li>
               <li>• Verify site schedule + vote flow.</li>
@@ -233,24 +241,24 @@ export default async function AdminDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border-zinc-200/70 dark:border-zinc-800">
+        <Card className="border-border bg-card text-card-foreground">
           <CardContent className="p-5">
-            <p className="text-sm font-semibold">Admin glance</p>
+            <p className="text-sm font-semibold text-foreground">Admin glance</p>
             <Separator className="my-4" />
             <div className="grid gap-3 text-xs">
               <div className="flex items-center justify-between">
-                <span className="text-zinc-500 dark:text-zinc-400">Published festivals</span>
-                <span className="font-medium text-zinc-900 dark:text-zinc-100">{festivalsPublished}</span>
+                <span className="text-muted-foreground">Published festivals</span>
+                <span className="font-medium text-foreground">{festivalsPublished}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-zinc-500 dark:text-zinc-400">Draft festivals</span>
-                <span className="font-medium text-zinc-900 dark:text-zinc-100">{festivalsDrafts}</span>
+                <span className="text-muted-foreground">Draft festivals</span>
+                <span className="font-medium text-foreground">{festivalsDrafts}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-zinc-500 dark:text-zinc-400">Users</span>
-                <span className="font-medium text-zinc-900 dark:text-zinc-100">{usersCount}</span>
+                <span className="text-muted-foreground">Users</span>
+                <span className="font-medium text-foreground">{usersCount}</span>
               </div>
-              <p className="pt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+              <p className="pt-2 text-[11px] text-muted-foreground">
                 Next upgrade: “recently edited”, “missing stage assignments”, “overlap warnings”.
               </p>
             </div>

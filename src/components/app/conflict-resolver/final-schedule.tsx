@@ -4,6 +4,7 @@
 import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatTimeRange } from "@/lib/time";
+import { cn } from "@/lib/utils";
 import type { SetLite } from "./types";
 
 function dayKeyInTimeZone(date: Date, timeZone: string) {
@@ -33,14 +34,6 @@ function transitionKey(prevId: string, nextId: string): TransitionKey {
 
 function plural(n: number, word: string) {
   return `${n} ${word}${n === 1 ? "" : "s"}`;
-}
-
-function fmtGap(min: number | null) {
-  if (min === null) return "—";
-  const v = Math.round(min);
-  if (v === 0) return "0m";
-  if (v > 0) return `+${v}m`;
-  return `${v}m`; // negative means overlap
 }
 
 function gapLabel(min: number | null) {
@@ -105,28 +98,23 @@ export function FinalScheduleCard({
   }, [schedule, days, timeZone]);
 
   return (
-    <Card className="border-zinc-200/70 dark:border-zinc-800">
+    <Card className="border-border bg-card text-card-foreground">
       <CardContent className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="text-sm font-semibold">Your schedule</p>
-            <p className="mt-1 text-xs text-zinc-600 dark:text-zinc-300">
+            <p className="text-sm font-semibold text-foreground">Your schedule</p>
+            <p className="mt-1 text-xs text-muted-foreground">
               Optimistic build: max shows first, then your votes as tie-breakers.
               {allowedOverlapMin > 0 ? " (Small overlaps allowed.)" : " (Non-overlapping only.)"}
             </p>
           </div>
 
-          <div className="text-xs text-zinc-600 dark:text-zinc-300">
-            Included: <span className="font-medium">{schedule.length}</span> / {allSetsCount}
-            {hasConflictsRemaining ? (
-              <span className="ml-2 rounded-full bg-zinc-100 px-2 py-1 text-[11px] text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
-                conflicts resolved by ranking
-              </span>
-            ) : (
-              <span className="ml-2 rounded-full bg-zinc-100 px-2 py-1 text-[11px] text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
-                no conflicts
-              </span>
-            )}
+          <div className="text-xs text-muted-foreground">
+            Included:{" "}
+            <span className="font-medium text-foreground">{schedule.length}</span> / {allSetsCount}
+            <span className="ml-2 rounded-full bg-muted px-2 py-1 text-[11px] text-muted-foreground">
+              {hasConflictsRemaining ? "conflicts resolved by ranking" : "no conflicts"}
+            </span>
           </div>
         </div>
 
@@ -137,12 +125,10 @@ export function FinalScheduleCard({
             return (
               <div key={g.day} className="grid gap-3">
                 <div className="flex items-baseline justify-between">
-                  <p className="text-xs font-semibold tracking-wide text-zinc-700 dark:text-zinc-200">
+                  <p className="text-xs font-semibold tracking-wide text-foreground">
                     {dayLabel(dayIndex)} — {g.day}
                   </p>
-                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                    {plural(sets.length, "set")}
-                  </p>
+                  <p className="text-[11px] text-muted-foreground">{plural(sets.length, "set")}</p>
                 </div>
 
                 <div className="grid gap-3">
@@ -153,7 +139,7 @@ export function FinalScheduleCard({
                     const keyFromPrev = prev ? transitionKey(prev.setId, s.setId) : null;
                     const keyToNext = next ? transitionKey(s.setId, next.setId) : null;
 
-                    const gapFromPrevMin = prev ? minutesBetween(prev.endsAt, s.startsAt) : null; // can be negative if overlap
+                    const gapFromPrevMin = prev ? minutesBetween(prev.endsAt, s.startsAt) : null;
                     const gapToNextMin = next ? minutesBetween(s.endsAt, next.startsAt) : null;
 
                     const tightFromPrev =
@@ -171,7 +157,6 @@ export function FinalScheduleCard({
                     const arriveSelected = chosenFromPrev === "arriveLate";
                     const leaveSelected = chosenToNext === "leaveEarly";
 
-                    // ✅ card click toggles the "most relevant" action (arriveLate preferred)
                     const onCardClick = () => {
                       if (showArriveLate && keyFromPrev) {
                         toggleChoice(keyFromPrev, "arriveLate");
@@ -182,8 +167,8 @@ export function FinalScheduleCard({
                       }
                     };
 
-                    // only clickable if there’s something to toggle
-                    const clickable = (showArriveLate && !!keyFromPrev) || (showLeaveEarly && !!keyToNext);
+                    const clickable =
+                      (showArriveLate && !!keyFromPrev) || (showLeaveEarly && !!keyToNext);
 
                     return (
                       <div
@@ -201,31 +186,30 @@ export function FinalScheduleCard({
                               }
                             : undefined
                         }
-                        className={[
-                          "group relative overflow-hidden rounded-xl border border-zinc-200/70 p-3 dark:border-zinc-800",
-                          "transition-shadow hover:shadow-sm",
-                          clickable ? "cursor-pointer" : "cursor-default",
+                        className={cn(
+                          "group relative overflow-hidden rounded-xl border border-border p-3 transition-colors",
                           clickable
-                            ? "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-zinc-400/60 dark:focus-visible:ring-zinc-600/60"
-                            : "",
-                        ].join(" ")}
+                            ? "cursor-pointer hover:bg-hover hover:text-hover-foreground active:bg-active active:text-active-foreground"
+                            : "cursor-default",
+                          clickable ? "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40" : ""
+                        )}
                       >
                         {/* BUTTONS (TOP LAYER) */}
                         <div className="relative z-30 flex items-start justify-between gap-3">
-                          <p className="truncate text-sm font-semibold">{s.artistName}</p>
+                          <p className="truncate text-sm font-semibold text-current">{s.artistName}</p>
 
                           <div className="flex shrink-0 items-center gap-2">
                             {showArriveLate && keyFromPrev ? (
                               <button
                                 type="button"
                                 onClick={(e) => {
-                                  e.stopPropagation(); // ✅ prevent double toggle
+                                  e.stopPropagation();
                                   toggleChoice(keyFromPrev, "arriveLate");
                                 }}
                                 className={[
                                   "rounded-full px-3 py-1 text-[10px] font-extrabold tracking-wider",
-                                  "text-white shadow-sm",
-                                  "bg-red-600 hover:bg-red-600/90",
+                                  "bg-primary text-primary-foreground shadow-sm",
+                                  "hover:opacity-95",
                                   arriveSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
                                   "transition-opacity",
                                 ].join(" ")}
@@ -239,13 +223,13 @@ export function FinalScheduleCard({
                               <button
                                 type="button"
                                 onClick={(e) => {
-                                  e.stopPropagation(); // ✅ prevent double toggle
+                                  e.stopPropagation();
                                   toggleChoice(keyToNext, "leaveEarly");
                                 }}
                                 className={[
                                   "rounded-full px-3 py-1 text-[10px] font-extrabold tracking-wider",
-                                  "text-white shadow-sm",
-                                  "bg-red-600 hover:bg-red-600/90",
+                                  "bg-primary text-primary-foreground shadow-sm",
+                                  "hover:opacity-95",
                                   leaveSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
                                   "transition-opacity",
                                 ].join(" ")}
@@ -257,12 +241,13 @@ export function FinalScheduleCard({
                           </div>
                         </div>
 
-                        {/* GRADIENTS (MIDDLE LAYER) */}
+                        {/* GRADIENT HINTS (MIDDLE LAYER) */}
                         {showArriveLate ? (
                           <div
                             className={[
-                              "pointer-events-none absolute inset-x-0 top-0 h-16 z-20",
-                              "bg-linear-to-b from-red-500/70 via-red-500/15 to-transparent",
+                              "pointer-events-none absolute inset-x-0 top-0 z-20 h-16",
+                              // primary-tinted hint that works in both themes
+                              "bg-linear-to-b from-primary/55 via-primary/15 to-transparent",
                               arriveSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
                               "transition-opacity",
                             ].join(" ")}
@@ -272,8 +257,8 @@ export function FinalScheduleCard({
                         {showLeaveEarly ? (
                           <div
                             className={[
-                              "pointer-events-none absolute inset-x-0 bottom-0 h-16 z-20",
-                              "bg-linear-to-t from-red-500/70 via-red-500/15 to-transparent",
+                              "pointer-events-none absolute inset-x-0 bottom-0 z-20 h-16",
+                              "bg-linear-to-t from-primary/55 via-primary/15 to-transparent",
                               leaveSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100",
                               "transition-opacity",
                             ].join(" ")}
@@ -282,19 +267,25 @@ export function FinalScheduleCard({
 
                         {/* REST OF CONTENT (BOTTOM LAYER) */}
                         <div className="relative z-10">
-                          <p className="text-xs text-zinc-600 dark:text-zinc-300">Stage: {s.stageName}</p>
-                          <p className="text-xs text-zinc-600 dark:text-zinc-300">
+                          <p className="text-xs opacity-80">Stage: {s.stageName}</p>
+                          <p className="text-xs opacity-80">
                             Time: {formatTimeRange(s.startsAt, s.endsAt)}
                           </p>
 
                           {/* ALWAYS show time between sets */}
                           <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
-                            <span className="rounded-full bg-zinc-100 px-2 py-1 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
-                              FROM PREV: <span className="font-semibold">{prev ? gapLabel(gapFromPrevMin) : "—"}</span>
+                            <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">
+                              FROM PREV:{" "}
+                              <span className="font-semibold text-foreground">
+                                {prev ? gapLabel(gapFromPrevMin) : "—"}
+                              </span>
                             </span>
 
-                            <span className="rounded-full bg-zinc-100 px-2 py-1 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
-                              TO NEXT: <span className="font-semibold">{next ? gapLabel(gapToNextMin) : "—"}</span>
+                            <span className="rounded-full bg-muted px-2 py-1 text-muted-foreground">
+                              TO NEXT:{" "}
+                              <span className="font-semibold text-foreground">
+                                {next ? gapLabel(gapToNextMin) : "—"}
+                              </span>
                             </span>
                           </div>
                         </div>
@@ -308,13 +299,13 @@ export function FinalScheduleCard({
         </div>
 
         {saveStatus === "saved" ? (
-          <p className="mt-3 text-center text-xs text-emerald-600">Saved!</p>
-        ) : saveStatus === "error" ? (
-          <p className="mt-3 text-center text-xs text-red-600">Could not save. Try again.</p>
-        ) : saveStatus === "unauthorized" ? (
-          <p className="mt-3 text-center text-xs text-zinc-600 dark:text-zinc-300">
-            Please sign in to save.
+          <p className="mt-3 text-center text-xs text-foreground">
+            <span className="rounded-full bg-muted px-2 py-1">Saved!</span>
           </p>
+        ) : saveStatus === "error" ? (
+          <p className="mt-3 text-center text-xs text-destructive">Could not save. Try again.</p>
+        ) : saveStatus === "unauthorized" ? (
+          <p className="mt-3 text-center text-xs text-muted-foreground">Please sign in to save.</p>
         ) : null}
       </CardContent>
     </Card>

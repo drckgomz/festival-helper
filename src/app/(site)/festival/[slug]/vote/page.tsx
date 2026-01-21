@@ -32,13 +32,22 @@ export default async function FestivalVotePage(props: PageProps) {
   const days = parseCsv(searchParams.days);
   const setIds = parseCsv(searchParams.sets);
 
-  // Vote page needs the chosen sets (same as review page)
   if (days.length === 0 || setIds.length === 0) return notFound();
 
   const sets = await getSetsByIds({ festivalId: festival.id, setIds });
 
   return (
     <div className="mx-auto w-full max-w-6xl">
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Resolve conflicts
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Pick between overlaps to build your schedule for{" "}
+          <span className="font-medium text-foreground">{festival.name}</span>.
+        </p>
+      </div>
+
       <ConflictVotePage
         festivalSlug={festival.slug}
         festivalId={festival.id}

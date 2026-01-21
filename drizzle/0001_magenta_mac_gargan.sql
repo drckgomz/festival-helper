@@ -1,3 +1,0 @@
--- no-op migration:
--- public.festival_days already exists in the database (created outside drizzle).
--- This file exists only to sync drizzle migration history.

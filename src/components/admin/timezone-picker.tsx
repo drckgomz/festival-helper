@@ -24,11 +24,8 @@ type Props = {
 };
 
 function getAllTimeZones(): string[] {
-  // Modern browsers / Node runtimes may support this
   const supported = (Intl as any)?.supportedValuesOf?.("timeZone") as string[] | undefined;
   if (Array.isArray(supported) && supported.length) return supported;
-
-  // Fallback: at least keep your default usable if unsupported
   return ["America/Chicago"];
 }
 
@@ -48,12 +45,11 @@ export function TimezonePicker({
 
   const zones = React.useMemo(() => {
     const all = getAllTimeZones();
-    return orderWithChicagoFirst(all);
-  }, []);
+    return orderWithChicagoFirst(all, defaultValue);
+  }, [defaultValue]);
 
   const [value, setValue] = React.useState<string>(defaultValue);
 
-  // in case defaultValue changes (rare, but safe)
   React.useEffect(() => {
     setValue(defaultValue);
   }, [defaultValue]);
@@ -68,44 +64,56 @@ export function TimezonePicker({
             type="button"
             variant="outline"
             disabled={disabled}
-            className="h-10 w-full justify-start rounded-md border-zinc-200 bg-white px-3 text-left text-sm font-normal text-zinc-900 shadow-sm
-                       hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+            className={cn(
+              "h-10 w-full justify-start rounded-md px-3 text-left text-sm font-normal shadow-sm",
+              "border-border bg-background text-foreground",
+              // ✅ readability-safe hover tokens
+              "hover:bg-hover hover:text-hover-foreground",
+              "focus-visible:ring-ring/40"
+            )}
           >
             <Globe2 className="mr-2 h-4 w-4 opacity-70" />
-            <span className={cn(!value && "text-zinc-500 dark:text-zinc-400")}>
-              {value || label}
-            </span>
+            <span className={cn(!value && "text-muted-foreground")}>{value || label}</span>
           </Button>
         </PopoverTrigger>
 
-        {/* small popout */}
-        <PopoverContent className="w-[260px] p-2" align="start">
-          <Command>
+        <PopoverContent
+          className={cn("w-60 p-2", "border-border bg-popover text-popover-foreground shadow-sm")}
+          align="start"
+        >
+          <Command className="bg-transparent">
             <CommandInput placeholder="Search timezone…" className="h-8 text-xs" />
             <CommandEmpty>No timezones found.</CommandEmpty>
 
-            {/* scrollable list */}
             <CommandList className="max-h-56 overflow-auto">
               <CommandGroup>
-                {zones.map((tz) => (
-                  <CommandItem
-                    key={tz}
-                    value={tz}
-                    onSelect={() => {
-                      setValue(tz);
-                      setOpen(false);
-                    }}
-                    className="flex items-center justify-between py-2"
-                  >
-                    <span className="text-xs">{tz}</span>
-                    {tz === value ? <Check className="h-4 w-4 opacity-70" /> : null}
-                  </CommandItem>
-                ))}
+                {zones.map((tz) => {
+                  const selected = tz === value;
+                  return (
+                    <CommandItem
+                      key={tz}
+                      value={tz}
+                      onSelect={() => {
+                        setValue(tz);
+                        setOpen(false);
+                      }}
+                      className={cn(
+                        "flex items-center justify-between py-2",
+                        // ✅ keep list hover/focus readable in dark mode
+                        "aria-selected:bg-hover aria-selected:text-hover-foreground",
+                        "data-[selected=true]:bg-hover data-[selected=true]:text-hover-foreground"
+                      )}
+                    >
+                      <span className="text-xs">{tz}</span>
+                      {selected ? <Check className="h-4 w-4 opacity-70" /> : null}
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             </CommandList>
           </Command>
 
-          <p className="pt-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+          <p className="pt-2 text-[11px] text-muted-foreground">
             Chicago is pinned at the top.
           </p>
         </PopoverContent>

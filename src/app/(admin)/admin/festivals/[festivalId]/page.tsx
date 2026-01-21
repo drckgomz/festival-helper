@@ -1,31 +1,63 @@
 // src/app/(admin)/admin/festivals/[festivalId]/page.tsx
-import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
+import { db } from "@/db";
+import { festivalLocations } from "@/db/schema";
+import { asc, eq } from "drizzle-orm";
 
-export default async function AdminFestivalOverviewPage({
-  params,
-}: {
-  params: { festivalId: string };
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+
+import { AdminFestivalLocationsManager } from "@/components/admin/festival/admin-festival-locations-manager";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+export default async function AdminFestivalOverviewPage(props: {
+  params: Promise<{ festivalId: string }>;
 }) {
-  const { festivalId } = params;
+  const { festivalId } = await props.params;
+
+  const rows = await db
+    .select()
+    .from(festivalLocations)
+    .where(eq(festivalLocations.festivalId, festivalId))
+    .orderBy(
+      asc(festivalLocations.groupKey),
+      asc(festivalLocations.sortOrder),
+      asc(festivalLocations.type),
+      asc(festivalLocations.name)
+    );
 
   return (
-    <Card className="border-zinc-200/70 dark:border-zinc-800">
-      <CardContent className="p-5">
-        <p className="text-sm font-semibold">Overview</p>
+    <div className="grid gap-4">
+      <Card className="border-border bg-card text-card-foreground">
+        <CardContent className="p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Manage festival</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Overview + tools for this festival.
+              </p>
+            </div>
 
-        <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-          Festival ID: <span className="font-mono">{festivalId}</span>
-        </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button asChild variant="outline" className="h-9 rounded-full px-4">
+                <Link href="/admin/festivals">Back</Link>
+              </Button>
+            </div>
+          </div>
 
-        <p className="mt-3 text-xs text-zinc-600 dark:text-zinc-300">
-          Coming next:
-          <br />• publish toggle  
-          <br />• timezone  
-          <br />• date range  
-          <br />• counts (days / stages / sets)  
-          <br />• quick tools
-        </p>
-      </CardContent>
-    </Card>
+          <Separator className="my-4" />
+
+          <p className="text-xs text-muted-foreground">
+            Festival ID: <span className="font-mono text-foreground">{festivalId}</span>
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Locations section (componentized) */}
+      <AdminFestivalLocationsManager festivalId={festivalId} rows={rows} />
+    </div>
   );
 }

@@ -27,8 +27,15 @@ export function HeaderActions(props: {
     saveStatus = "idle",
   } = props;
 
+  const saveLabel =
+    saveStatus === "saving"
+      ? "Saving…"
+      : saveStatus === "saved"
+      ? "Saved"
+      : "Save";
+
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <Button asChild variant="outline" className="h-9 rounded-full px-4">
         <Link href={backHref}>Back</Link>
       </Button>
@@ -53,14 +60,24 @@ export function HeaderActions(props: {
         Undo
       </Button>
 
-      <Button
-        className="h-9 rounded-full px-4"
-        onClick={onSave}
-        disabled={saveStatus === "saving"}
-      >
-        <Save className="mr-2 h-4 w-4" />
-        Save
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          className="h-9 rounded-full px-4"
+          onClick={onSave}
+          disabled={saveStatus === "saving"}
+        >
+          <Save className="mr-2 h-4 w-4" />
+          {saveLabel}
+        </Button>
+
+        {saveStatus === "error" ? (
+          <span className="text-xs text-destructive">Save failed</span>
+        ) : saveStatus === "unauthorized" ? (
+          <span className="text-xs text-muted-foreground">Sign in to save</span>
+        ) : saveStatus === "saved" ? (
+          <span className="text-xs text-muted-foreground">Saved!</span>
+        ) : null}
+      </div>
     </div>
   );
 }

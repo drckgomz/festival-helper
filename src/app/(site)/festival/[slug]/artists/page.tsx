@@ -1,4 +1,4 @@
-// src/app/(stie)/festival/[slug]/artists/page.tsx
+// src/app/(site)/festival/[slug]/artists/page.tsx
 import { notFound } from "next/navigation";
 import { getFestivalBySlug } from "@/db/queries/festivals";
 import { getSetsForFestivalDays } from "@/db/queries/sets";
@@ -47,13 +47,16 @@ export default async function FestivalArtistsPage(props: PageProps) {
   return (
     <div className="mx-auto w-full max-w-6xl">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Select artists</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
-          Choose who you want to see for <span className="font-medium">{festival.name}</span>.
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Select artists
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Choose who you want to see for{" "}
+          <span className="font-medium text-foreground">{festival.name}</span>.
         </p>
       </div>
 
-      <Card className="border-zinc-200/70 dark:border-zinc-800">
+      <Card className="border-border bg-card text-card-foreground">
         <CardContent className="pt-6">
           <ArtistPicker
             festivalSlug={festival.slug}

@@ -169,8 +169,6 @@ export const userPreferences = pgTable(
 export const festivalAdmins = pgTable(
   "festival_admins",
   {
-    id: uuid("id").defaultRandom().primaryKey(),
-
     festivalId: uuid("festival_id")
       .notNull()
       .references(() => festivals.id, { onDelete: "cascade" }),
@@ -179,27 +177,22 @@ export const festivalAdmins = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
 
-    role: text("role").notNull().default("admin"), // owner | admin | editor | viewer
-
-    // who granted this role (nullable for bootstrap)
-    grantedByUserId: uuid("granted_by_user_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-
-    source: text("source").notNull().default("clerk"), // clerk | db | seed
-    isActive: boolean("is_active").notNull().default(true),
+    role: text("role").notNull().default("admin"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+
+    createdByUserId: uuid("created_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
   },
   (t) => ({
-    uniqueFestivalAdmin: uniqueIndex("festival_admins_unique").on(t.festivalId, t.userId),
-    festivalIdx: index("festival_admins_festival_idx").on(t.festivalId),
-    userIdx: index("festival_admins_user_idx").on(t.userId),
-    roleIdx: index("festival_admins_role_idx").on(t.festivalId, t.role),
-    activeIdx: index("festival_admins_active_idx").on(t.festivalId, t.isActive),
+    pk: uniqueIndex("festival_admins_pkey").on(t.festivalId, t.userId),
+    festivalIdx: index("festival_admins_festival_id_idx").on(t.festivalId),
+    userIdx: index("festival_admins_user_id_idx").on(t.userId),
   })
 );
+
 
 /**
  * ROLE AUDIT LOG
@@ -214,19 +207,15 @@ export const roleAuditLog = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
 
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    targetUserId: uuid("target_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     festivalId: uuid("festival_id").references(() => festivals.id, { onDelete: "cascade" }),
 
-    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
-    targetUserId: uuid("target_user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
+    action: text("action").notNull(),
+    prevRole: text("prev_role"),
+    nextRole: text("next_role"),
 
-    action: text("action").notNull(), // grant | revoke | update | set_superadmin | unset_superadmin
-    roleBefore: text("role_before"),
-    roleAfter: text("role_after"),
-
-    source: text("source").notNull().default("clerk"), // clerk | api | seed
-    reason: text("reason"),
+    source: text("source").notNull().default("app"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -237,6 +226,7 @@ export const roleAuditLog = pgTable(
     createdIdx: index("role_audit_created_idx").on(t.createdAt),
   })
 );
+
 
 /**
  * SETS / PERFORMANCES
@@ -263,6 +253,50 @@ export const sets = pgTable(
     artistTimeIdx: index("sets_artist_time_idx").on(t.artistId, t.startsAt),
   })
 );
+
+/**
+ * FESTIVAL LOCATIONS
+ * - Unified “map pins” system for stages, merch booths, restrooms, entrances, etc.
+ */
+export const festivalLocations = pgTable(
+  "festival_locations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    festivalId: uuid("festival_id")
+      .notNull()
+      .references(() => festivals.id, { onDelete: "cascade" }),
+
+    // Display
+    name: text("name").notNull(),
+    type: text("type").notNull().default("stage"),
+    description: text("description"),
+
+    // Grouping / sections (ex: "Main Grounds", "VIP", "East Side")
+    groupKey: text("group_key"),
+    groupLabel: text("group_label"),
+
+    // Ordering in lists
+    sortOrder: integer("sort_order").notNull().default(0),
+    isActive: boolean("is_active").notNull().default(true),
+
+    // GPS (decimal degrees). Keep as text-friendly numeric precision.
+    lat: text("lat"), // store as string "30.2672"
+    lng: text("lng"), // store as string "-97.7431"
+
+    // Optional extra metadata (ex: vendor, hours, etc.)
+    meta: text("meta"), // JSON string if you want later
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => ({
+    festivalIdx: index("festival_locations_festival_idx").on(t.festivalId),
+    typeIdx: index("festival_locations_type_idx").on(t.festivalId, t.type),
+    groupIdx: index("festival_locations_group_idx").on(t.festivalId, t.groupKey, t.sortOrder),
+  })
+);
+
 
 /**
  * USER FAVORITES PER FESTIVAL
@@ -345,7 +379,10 @@ export const festivalsRelations = relations(festivals, ({ many }) => ({
   groups: many(groups),
   admins: many(festivalAdmins),
   roleAudit: many(roleAuditLog),
+
+  locations: many(festivalLocations),
 }));
+
 
 export const festivalDaysRelations = relations(festivalDays, ({ one }) => ({
   festival: one(festivals, { fields: [festivalDays.festivalId], references: [festivals.id] }),
@@ -381,8 +418,10 @@ export const userPreferencesRelations = relations(userPreferences, ({ one }) => 
 export const festivalAdminsRelations = relations(festivalAdmins, ({ one }) => ({
   festival: one(festivals, { fields: [festivalAdmins.festivalId], references: [festivals.id] }),
   user: one(users, { fields: [festivalAdmins.userId], references: [users.id] }),
-  grantedBy: one(users, { fields: [festivalAdmins.grantedByUserId], references: [users.id] }),
+  createdBy: one(users, { fields: [festivalAdmins.createdByUserId], references: [users.id] }),
 }));
+
+
 
 export const roleAuditLogRelations = relations(roleAuditLog, ({ one }) => ({
   festival: one(festivals, { fields: [roleAuditLog.festivalId], references: [festivals.id] }),

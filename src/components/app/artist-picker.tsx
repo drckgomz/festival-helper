@@ -22,30 +22,23 @@ import { cn } from "@/lib/utils";
 import { formatTimeRange } from "@/lib/time";
 
 type Row = {
-  day: string; // YYYY-MM-DD
+  day: string;
   setId: string;
-
   artistId: string;
   artistName: string;
   artistImageUrl: string | null;
-
   stageName: string;
-  startsAt: string; // ISO
-  endsAt: string; // ISO
+  startsAt: string;
+  endsAt: string;
 };
 
 type Tile = {
-  // "unique artist" tile, but we still keep all performances for conflict detection later
   artistId: string;
   artistName: string;
   artistImageUrl: string | null;
-
-  // display fields (we pick ONE set to display)
   stageName: string;
   startsAt: Date;
   endsAt: Date;
-
-  // all sets for this artist within selected days
   sets: Array<{
     setId: string;
     stageName: string;
@@ -64,7 +57,6 @@ const SORT_LABEL: Record<SortMode, string> = {
 };
 
 function tileKeyFromRow(r: Row) {
-  // DB duplicates will share these, so the UI will collapse them.
   return `${r.artistId}|${r.startsAt}|${r.endsAt}|${r.stageName}`;
 }
 
@@ -79,7 +71,6 @@ export function ArtistPicker({
 }) {
   const router = useRouter();
 
-  // 1) De-dupe identical rows first (handles duplicate DB inserts)
   const dedupedRows = React.useMemo(() => {
     const seen = new Set<string>();
     const out: Row[] = [];
@@ -92,7 +83,6 @@ export function ArtistPicker({
     return out;
   }, [rows]);
 
-  // 2) Build unique-artist tiles
   const tiles = React.useMemo<Tile[]>(() => {
     const map = new Map<string, Tile>();
 
@@ -116,7 +106,7 @@ export function ArtistPicker({
 
       existing.sets.push({ setId: r.setId, stageName: r.stageName, startsAt, endsAt });
 
-      // pick the LATEST set as the display info (so latest-first sorting makes sense)
+      // keep "latest" set as the primary displayed time/stage
       if (startsAt > existing.startsAt) {
         existing.startsAt = startsAt;
         existing.endsAt = endsAt;
@@ -150,7 +140,6 @@ export function ArtistPicker({
     }
   }, [tiles, sortMode]);
 
-  // Selection is by ARTIST (unique)
   const [selectedArtistIds, setSelectedArtistIds] = React.useState<Set<string>>(new Set());
   const [warning, setWarning] = React.useState<string | null>(null);
 
@@ -170,7 +159,6 @@ export function ArtistPicker({
       return;
     }
 
-    // Expand to all setIds for those artists (so conflict detection can use sets/times)
     const selectedSetIds: string[] = [];
     for (const t of tiles) {
       if (!selectedArtistIds.has(t.artistId)) continue;
@@ -188,8 +176,8 @@ export function ArtistPicker({
     <div className="grid gap-6">
       {/* Sort */}
       <div className="flex items-center justify-between gap-3">
-        <div className="text-xs text-zinc-600 dark:text-zinc-300">
-          Showing <span className="font-medium">{sortedTiles.length}</span> artists
+        <div className="text-xs text-muted-foreground">
+          Showing <span className="font-medium text-foreground">{sortedTiles.length}</span> artists
         </div>
 
         <DropdownMenu>
@@ -200,11 +188,18 @@ export function ArtistPicker({
             </Button>
           </DropdownMenuTrigger>
 
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel>Sort artists by</DropdownMenuLabel>
-            <DropdownMenuSeparator />
+          <DropdownMenuContent
+            align="end"
+            className="w-52 border-border bg-popover text-popover-foreground"
+          >
+            <DropdownMenuLabel className="text-foreground">Sort artists by</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-border" />
             {(Object.keys(SORT_LABEL) as SortMode[]).map((mode) => (
-              <DropdownMenuItem key={mode} onClick={() => setSortMode(mode)}>
+              <DropdownMenuItem
+                key={mode}
+                onClick={() => setSortMode(mode)}
+                className="focus:bg-hover focus:text-hover-foreground"
+              >
                 <span className="flex-1">{SORT_LABEL[mode]}</span>
                 {sortMode === mode ? <Check className="h-4 w-4 opacity-70" /> : null}
               </DropdownMenuItem>
@@ -216,30 +211,35 @@ export function ArtistPicker({
       {/* Tiles */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {sortedTiles.length === 0 ? (
-          <p className="col-span-full text-center text-sm text-zinc-600 dark:text-zinc-300">
+          <p className="col-span-full text-center text-sm text-muted-foreground">
             No artists found for the selected days.
           </p>
         ) : (
           sortedTiles.map((t) => {
             const isOn = selectedArtistIds.has(t.artistId);
+
             return (
               <Card
                 key={t.artistId}
-                className={cn(
-                  "cursor-pointer select-none overflow-hidden border-zinc-200/70 transition",
-                  "hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-900/40",
-                  isOn && "border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-black"
-                )}
                 onClick={() => toggleArtist(t.artistId)}
+                className={cn(
+                  "group cursor-pointer select-none overflow-hidden border border-border bg-card text-card-foreground transition-colors",
+                  "focus-within:ring-2 focus-within:ring-ring/40",
+                  // Unselected hover = safe hover surface tokens
+                  !isOn && "festival-hover-pressable",
+                  // Selected = primary festival emphasis (no unreadable flips)
+                  isOn &&
+                    "bg-primary text-primary-foreground border-primary/40 hover:opacity-[0.98]"
+                )}
               >
                 <CardContent className="p-4">
-                  {/* Image placeholder (swap to real img later) */}
+                  {/* Big square image */}
                   <div
                     className={cn(
-                      "mb-3 h-28 w-full rounded-xl border",
+                      "mb-4 aspect-square w-full overflow-hidden rounded-2xl border",
                       isOn
-                        ? "border-white/30 bg-white/10 dark:border-black/20 dark:bg-black/5"
-                        : "border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900/30"
+                        ? "border-primary-foreground/25 bg-primary-foreground/10"
+                        : "border-border bg-muted"
                     )}
                   >
                     {t.artistImageUrl ? (
@@ -247,50 +247,48 @@ export function ArtistPicker({
                       <img
                         alt={t.artistName}
                         src={t.artistImageUrl}
-                        className="h-full w-full rounded-xl object-cover"
+                        className="h-full w-full object-cover"
+                        loading="lazy"
                       />
-                    ) : null}
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-xs opacity-70">
+                        no image
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold">{t.artistName}</p>
+                      {/* Artist name: inherit container color on hover/selected */}
+                      <p className="truncate text-sm font-semibold text-current">
+                        {t.artistName}
+                      </p>
 
-                      <p
-                        className={cn(
-                          "mt-1 text-xs",
-                          isOn ? "text-white/80 dark:text-black/70" : "text-zinc-600 dark:text-zinc-300"
-                        )}
-                      >
+                      {/* Secondary lines: use opacity so they remain readable when text color changes */}
+                      <p className="mt-1 text-xs opacity-80">
                         Stage: {t.stageName}
                       </p>
 
-                      <p
-                        className={cn(
-                          "mt-1 text-xs",
-                          isOn ? "text-white/80 dark:text-black/70" : "text-zinc-600 dark:text-zinc-300"
-                        )}
-                      >
+                      <p className="mt-1 text-xs opacity-80">
                         Time: {formatTimeRange(t.startsAt, t.endsAt)}
                       </p>
 
                       {t.sets.length > 1 ? (
-                        <p
-                          className={cn(
-                            "mt-2 text-[11px]",
-                            isOn ? "text-white/70 dark:text-black/60" : "text-zinc-500 dark:text-zinc-400"
-                          )}
-                        >
+                        <p className="mt-2 text-[11px] opacity-75">
                           {t.sets.length} performances in selected days
                         </p>
                       ) : null}
                     </div>
 
                     {isOn ? (
-                      <span className="rounded-full bg-white/15 px-2 py-1 text-[11px] font-medium text-white dark:bg-black/10 dark:text-black">
+                      <span className="rounded-full bg-primary-foreground/15 px-2 py-1 text-[11px] font-medium text-primary-foreground">
                         Selected
                       </span>
-                    ) : null}
+                    ) : (
+                      <span className="rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground group-hover:bg-transparent group-hover:text-current">
+                        Tap
+                      </span>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -301,9 +299,9 @@ export function ArtistPicker({
 
       {/* Warning */}
       {warning ? (
-        <p className="text-center text-xs text-red-600">{warning}</p>
+        <p className="text-center text-xs text-destructive">{warning}</p>
       ) : (
-        <p className="text-center text-xs text-zinc-600 dark:text-zinc-300">
+        <p className="text-center text-xs text-muted-foreground">
           Tap tiles to select. You can pick multiple artists.
         </p>
       )}

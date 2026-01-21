@@ -70,63 +70,88 @@ export function TimePicker({
             type="button"
             variant="outline"
             disabled={disabled}
-            className="h-10 w-full justify-start rounded-md border-zinc-200 bg-white px-3 text-left text-sm font-normal text-zinc-900 shadow-sm
-                       hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-100 dark:hover:bg-zinc-900"
+            className={cn(
+              "h-10 w-full justify-start rounded-md px-3 text-left text-sm font-normal shadow-sm",
+              "border-border bg-background text-foreground",
+              // ✅ use your readability-safe hover tokens instead of accent
+              "hover:bg-hover hover:text-hover-foreground",
+              "focus-visible:ring-ring/40"
+            )}
           >
             <Clock className="mr-2 h-4 w-4 opacity-70" />
-            <span className={cn(!value && "text-zinc-500 dark:text-zinc-400")}>{selectedLabel}</span>
+            <span className={cn(!value && "text-muted-foreground")}>{selectedLabel}</span>
           </Button>
         </PopoverTrigger>
 
-        {/* smaller + scrollable */}
-        <PopoverContent className="w-[240px] p-2" align="start">
-          {/* compact quick picks */}
+        <PopoverContent
+          align="start"
+          className={cn(
+            "w-60 p-2",
+            "border-border bg-popover text-popover-foreground shadow-sm"
+          )}
+        >
+          {/* quick picks */}
           <div className="flex flex-wrap gap-1 pb-2">
-            {QUICK.map((t) => (
-              <Button
-                key={t}
-                type="button"
-                variant="outline"
-                className="h-7 rounded-full px-2 text-[11px]"
-                onClick={() => {
-                  onChange(t);
-                  setOpen(false);
-                }}
-              >
-                {format12h(t)}
-              </Button>
-            ))}
+            {QUICK.map((t) => {
+              const active = t === value;
+              return (
+                <Button
+                  key={t}
+                  type="button"
+                  variant="outline"
+                  className={cn(
+                    "h-7 rounded-full px-2 text-[11px]",
+                    "border-border bg-background text-foreground",
+                    "hover:bg-hover hover:text-hover-foreground",
+                    active && "bg-hover text-hover-foreground"
+                  )}
+                  onClick={() => {
+                    onChange(t);
+                    setOpen(false);
+                  }}
+                >
+                  {format12h(t)}
+                </Button>
+              );
+            })}
           </div>
 
-          <Command>
+          <Command className="bg-transparent">
             <CommandInput placeholder="Search…" className="h-8 text-xs" />
             <CommandEmpty>No times found.</CommandEmpty>
 
-            {/* CommandList gives us a nice scroll container */}
             <CommandList className="max-h-56 overflow-auto">
               <CommandGroup>
-                {times.map((t) => (
-                  <CommandItem
-                    key={t.value}
-                    value={`${t.value} ${t.label}`}
-                    onSelect={() => {
-                      onChange(t.value);
-                      setOpen(false);
-                    }}
-                    className="flex items-center justify-between py-2"
-                  >
-                    <span className="text-xs">{t.label}</span>
-                    {t.value === value ? <Check className="h-4 w-4 opacity-70" /> : null}
-                  </CommandItem>
-                ))}
+                {times.map((t) => {
+                  const selected = t.value === value;
+                  return (
+                    <CommandItem
+                      key={t.value}
+                      value={`${t.value} ${t.label}`}
+                      onSelect={() => {
+                        onChange(t.value);
+                        setOpen(false);
+                      }}
+                      className={cn(
+                        "flex items-center justify-between py-2",
+                        // ✅ keep command items readable on hover/focus
+                        "aria-selected:bg-hover aria-selected:text-hover-foreground",
+                        "data-[selected=true]:bg-hover data-[selected=true]:text-hover-foreground"
+                      )}
+                    >
+                      <span className="text-xs">{t.label}</span>
+                      {selected ? <Check className="h-4 w-4 opacity-70" /> : null}
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             </CommandList>
           </Command>
         </PopoverContent>
       </Popover>
 
-      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-        Stored as <span className="font-medium">{value || "—"}</span> (24h).
+      <p className="text-[11px] text-muted-foreground">
+        Stored as <span className="font-medium text-foreground">{value || "—"}</span> (24h).
       </p>
     </div>
   );
