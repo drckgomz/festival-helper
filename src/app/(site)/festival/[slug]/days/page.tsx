@@ -38,20 +38,21 @@ export default async function FestivalDaysPage(props: PageProps) {
     sortOrder: d.sortOrder ?? 0,
   }));
 
-
   return (
     <div className="mx-auto w-full max-w-lg">
       <div className="mb-6 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Select days</h1>
-        <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-300">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Select days
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
           Choose which days you’re attending for{" "}
-          <span className="font-medium">{festival.name}</span>.
+          <span className="font-medium text-foreground">{festival.name}</span>.
         </p>
       </div>
 
-      <Card className="border-zinc-200/70 dark:border-zinc-800">
+      <Card className="border-border bg-card text-card-foreground">
         <CardHeader className="items-center text-center">
-          <CardTitle className="text-base">Days</CardTitle>
+          <CardTitle className="text-base text-current">Days</CardTitle>
         </CardHeader>
         <CardContent>
           <DayPicker festivalSlug={festival.slug} days={days} />

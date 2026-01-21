@@ -38,6 +38,19 @@ export default async function ReviewPage(props: PageProps) {
 
   return (
     <div className="mx-auto w-full max-w-6xl">
+      {/*
+      Optional consistent page header (uncomment if you want):
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Resolve conflicts
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Build your clean schedule for{" "}
+          <span className="font-medium text-foreground">{festival.name}</span>.
+        </p>
+      </div>
+      */}
+
       <ConflictResolver
         festivalSlug={festival.slug}
         festivalId={festival.id}

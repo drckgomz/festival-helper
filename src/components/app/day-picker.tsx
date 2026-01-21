@@ -15,7 +15,6 @@ type Day = {
 };
 
 function formatFallbackLabel(iso: string) {
-  // iso is YYYY-MM-DD
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
   return dt.toLocaleDateString(undefined, {
@@ -51,10 +50,7 @@ export function DayPicker({
   const [warning, setWarning] = React.useState<string | null>(null);
 
   const groups = React.useMemo(() => {
-    const map = new Map<
-      string,
-      { key: string; title: string; days: Day[] }
-    >();
+    const map = new Map<string, { key: string; title: string; days: Day[] }>();
 
     for (const d of days) {
       const key = normalizeKey(d.groupKey);
@@ -64,7 +60,6 @@ export function DayPicker({
       map.get(key)!.days.push(d);
     }
 
-    // Sort days inside each group
     for (const g of map.values()) {
       g.days.sort((a, b) => {
         const ao = a.sortOrder ?? 0;
@@ -74,7 +69,6 @@ export function DayPicker({
       });
     }
 
-    // Sort groups (w1, w2 first, then others, default last)
     const rank = (k: string) =>
       k === "w1" ? 1 : k === "w2" ? 2 : k === "default" ? 99 : 50;
 
@@ -107,29 +101,40 @@ export function DayPicker({
       {/* Group columns */}
       <div className="grid gap-6 sm:grid-cols-2">
         {groups.map((g) => (
-          <Card key={g.key} className="border-zinc-200/70 dark:border-zinc-800">
+          <Card
+            key={g.key}
+            className="border-border bg-card text-card-foreground"
+          >
             <CardContent className="p-4">
-              <p className="text-xs font-medium tracking-wide text-zinc-600 dark:text-zinc-300">
+              <p className="text-xs font-medium tracking-wide text-muted-foreground">
                 {g.title}
               </p>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 {g.days.length === 0 ? (
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  <p className="text-xs text-muted-foreground">
                     No days available.
                   </p>
                 ) : (
                   g.days.map((d) => {
                     const isOn = selected.includes(d.dayDate);
+                    const label = d.label ?? formatFallbackLabel(d.dayDate);
+
                     return (
                       <Button
                         key={d.dayDate}
                         type="button"
                         variant={isOn ? "default" : "outline"}
-                        className="h-10 rounded-full px-4"
                         onClick={() => toggle(d.dayDate)}
+                        className={[
+                          "h-10 rounded-full px-4 transition-colors",
+                          // ensure outline chips have readable hover
+                          !isOn
+                            ? "hover:bg-hover hover:text-hover-foreground"
+                            : "ring-1 ring-ring/25",
+                        ].join(" ")}
                       >
-                        {d.label ?? formatFallbackLabel(d.dayDate)}
+                        {label}
                       </Button>
                     );
                   })
@@ -140,18 +145,18 @@ export function DayPicker({
         ))}
       </div>
 
-      {/* Warning */}
+      {/* Warning / helper */}
       {warning ? (
-        <p className="text-center text-xs text-red-600">{warning}</p>
+        <p className="text-center text-xs text-destructive">{warning}</p>
       ) : (
-        <p className="text-center text-xs text-zinc-600 dark:text-zinc-300">
+        <p className="text-center text-xs text-muted-foreground">
           You can pick one or multiple days.
         </p>
       )}
 
       {/* Next button */}
       <div className="flex justify-center">
-        <Button onClick={handleNext} className="h-11 px-8 rounded-full">
+        <Button onClick={handleNext} className="h-11 rounded-full px-8">
           Next!
         </Button>
       </div>

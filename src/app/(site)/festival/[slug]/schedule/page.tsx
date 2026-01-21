@@ -32,13 +32,23 @@ export default async function FestivalSchedulePage(props: PageProps) {
   const days = parseCsv(searchParams.days);
   const setIds = parseCsv(searchParams.sets);
 
-  // Schedule page also needs the chosen sets
   if (days.length === 0 || setIds.length === 0) return notFound();
 
   const sets = await getSetsByIds({ festivalId: festival.id, setIds });
 
   return (
     <div className="mx-auto w-full max-w-6xl">
+      {/* Optional: consistent header styling across the flow */}
+      <div className="mb-6 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          Your schedule
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Here’s your conflict-free plan for{" "}
+          <span className="font-medium text-foreground">{festival.name}</span>.
+        </p>
+      </div>
+
       <ConflictSchedulePage
         festivalSlug={festival.slug}
         festivalId={festival.id}
